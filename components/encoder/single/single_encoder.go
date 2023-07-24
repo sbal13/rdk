@@ -181,6 +181,7 @@ func (e *Encoder) Reconfigure(
 
 // Start starts the Encoder background thread.
 func (e *Encoder) Start(ctx context.Context) {
+	var lastTick int64
 	encoderChannel := make(chan board.Tick)
 	e.I.AddCallback(encoderChannel)
 	e.activeBackgroundWorkers.Add(1)
@@ -205,7 +206,15 @@ func (e *Encoder) Start(ctx context.Context) {
 				// the motor. This may result in ticks being lost or applied in the wrong direction.
 				dir := e.m.DirectionMoving()
 				if dir == 1 || dir == -1 {
-					atomic.AddInt64(&e.position, dir)
+					tick, err := e.I.Value(ctx, nil)
+					if err != nil {
+						e.logger.Error(err)
+						return
+					}
+					if tick != lastTick {
+						atomic.AddInt64(&e.position, dir)
+					}
+					lastTick = tick
 				}
 			} else {
 				e.logger.Warn("received tick for encoder that isn't connected to a motor; ignoring")
@@ -236,10 +245,10 @@ func (e *Encoder) ResetPosition(ctx context.Context, extra map[string]interface{
 }
 
 // Properties returns a list of all the position types that are supported by a given encoder.
-func (e *Encoder) Properties(ctx context.Context, extra map[string]interface{}) (map[encoder.Feature]bool, error) {
-	return map[encoder.Feature]bool{
-		encoder.TicksCountSupported:   true,
-		encoder.AngleDegreesSupported: false,
+func (e *Encoder) Properties(ctx context.Context, extra map[string]interface{}) (encoder.Properties, error) {
+	return encoder.Properties{
+		TicksCountSupported:   true,
+		AngleDegreesSupported: false,
 	}, nil
 }
 
