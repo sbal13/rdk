@@ -168,7 +168,7 @@
 
     <!-- ******* NAVIGATION *******  -->
     {#each filterSubtype($services, 'navigation') as { name } (name)}
-      <Navigation {name} />
+      <Navigation {name} write={false} />
     {/each}
 
     <!-- ******* SENSOR *******  -->

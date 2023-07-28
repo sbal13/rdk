@@ -69,6 +69,16 @@
     destination = undefined;
   };
 
+  const localizationMode = (mapTimestamp: Timestamp | undefined) => {
+    if (mapTimestamp === undefined) {
+      return false;
+    }
+    const seconds = mapTimestamp.getSeconds();
+    const nanos = mapTimestamp.getNanos();
+    return seconds === lastTimestamp.getSeconds() && nanos === lastTimestamp.getNanos();
+  };
+
+
   const formatOverridePose = (poseData: Pose) => {
     const poseObject = new commonApi.Pose();
     poseObject.setX(poseData.x);
@@ -93,12 +103,12 @@
         nextPose = formatOverridePose(poseData);
         pointcloud = map;
 
-        /*
-         * The map timestamp is compared to the last timestamp
-         * to see if a change has been made to the pointcloud map.
-         * A new call to getPointCloudMap is made if an update has occured.
-         */
-      } else if (mapTimestamp?.getSeconds() === lastTimestamp.getSeconds()) {
+      /*
+      * The map timestamp is compared to the last timestamp
+      * to see if a change has been made to the pointcloud map.
+      * A new call to getPointCloudMap is made if an update has occured.
+      */
+      } else if (localizationMode(mapTimestamp)) {
         nextPose = await getPosition($robotClient, name);
       } else {
         [pointcloud, nextPose] = await Promise.all([
@@ -135,16 +145,19 @@
         const mapTimestamp = await getLatestMapInfo($robotClient, name);
 
         /*
-         * The map timestamp is compared to the last timestamp
-         * to see if a change has been made to the pointcloud map.
-         * A new call to getPointCloudMap is made if an update has occured.
-         */
-        if (mapTimestamp?.getSeconds() !== lastTimestamp.getSeconds()) {
+        * The map timestamp is compared to the last timestamp
+        * to see if a change has been made to the pointcloud map.
+        * A new call to getPointCloudMap is made if an update has occured.
+        */
+
+        if (!localizationMode(mapTimestamp)) {
           pointcloud = await getPointCloudMap($robotClient, name);
         }
         if (mapTimestamp) {
           lastTimestamp = mapTimestamp;
         }
+
+            
       }
     } catch (error) {
       refreshErrorMessage3d =
@@ -349,7 +362,6 @@
     slot="header"
     variant="danger"
     icon="stop-circle-outline"
-    class="fill-white"
     disabled={moveClicked ? 'false' : 'true'}
     label="Stop"
     on:click={handleStopMoveClick}
